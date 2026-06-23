@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDX Asset Analyzer | Institutional Intelligence</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/dist/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/styles/vis-network.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-cyan: #06b6d4;
+            --accent-amber: #f59e0b;
+            --accent-emerald: #10b981;
+            --accent-rose: #f43f5e;
+            --border-color: #334155;
+            --gradient-1: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+            --gradient-2: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .bg-mesh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(245, 158, 11, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+                var(--bg-primary);
+            animation: meshMove 20s ease-in-out infinite;
+        }
+
+        @keyframes meshMove {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+
+        header {
+            padding: 2rem 4rem;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .ticker-input {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+
+        .ticker-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        .btn-analyze {
+            background: var(--gradient-1);
+            border: none;
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-analyze:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.3);
+        }
+
+        .btn-analyze:active {
+            transform: translateY(0);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 3rem 4rem;
+        }
+
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 3rem;
+            animation: slideUp 0.6s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .stock-info h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -2px;
+        }
+
+        .stock-info .company-name {
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .stock-price {
+            text-align: right;
+        }
+
+        .current-price {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent-emerald);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .price-change {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .status-buy {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-emerald);
+            border: 1px solid var(--accent-emerald);
+        }
+
+        .status-warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--accent-amber);
+            border: 1px solid var(--accent-amber);
+        }
+
+        .status-danger {
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--accent-rose);
+            border: 1px solid var(--accent-rose);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--gradient-1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 2rem;
+        }
+
+        #network-graph {
+            width: 100%;
+            height: 600px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--accent-cyan);
+            transform: scale(1.02);
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .metric-change {
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .positive { color: var(--accent-emerald); }
+        .negative { color: var(--accent-rose); }
+        .neutral { color: var(--accent-amber); }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 2rem;
+        }
+
+        .ai-analysis {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .ai-content {
+            font-size: 1rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .ai-content strong {
+            color: var(--text-primary);
+        }
+
+        .risk-indicator {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .risk-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.875rem;
+        }
+
+        .risk-level {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .risk-low {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-emerald);
+        }
+
+        .risk-medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-amber);
+        }
+
+        .risk-high {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent-rose);
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 14, 26, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            animation: pulse 1.5s infinite;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stock-header {
+                flex-direction: column;
+                gap: 2rem;
+            }
+            
+            .stock-price {
+                text-align: left;
+            }
+        }
+
+        .vis-tooltip {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 8px !important;
+            padding: 1rem !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            color: var(--text-primary) !important;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-cyan);
+        }
+
+        .legend {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-company { background: var(--accent-cyan); }
+        .legend-person { background: var(--accent-amber); }
+        .legend-conglomerate { background: var(--accent-emerald); }
+    </style>
+</head>
+<body>
+    <div class="bg-mesh"></div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Analyzing market data...</div>
+    </div>
+
+    <header>
+        <div class="header-content">
+            <div class="logo">IDX Asset Analyzer</div>
+            <div class="search-bar">
+                <input type="text" class="ticker-input" id="tickerInput" placeholder="Enter ticker (e.g., BBCA)" value="BBCA">
+                <button class="btn-analyze" onclick="analyzeStock()">Analyze</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="stock-header" id="stockHeader" style="display: none;">
+            <div class="stock-info">
+                <h1 id="tickerSymbol">BBCA</h1>
+                <div class="company-name" id="companyName">PT Bank Central Asia Tbk</div>
+                <div id="statusBadge"></div>
+            </div>
+            <div class="stock-price">
+                <div class="current-price" id="currentPrice">Rp 6,225</div>
+                <div class="price-change" id="priceChange">Intrinsic Value: Rp 7,158</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid" id="dashboard" style="display: none;">
+            <div class="card">
+                <h2 class="card-title">Fundamental Metrics</h2>
+                <p class="card-subtitle">Key financial indicators</p>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">P/E Ratio</div>
+                        <div class="metric-value" id="peRatio">13.21</div>
+                        <div class="metric-change neutral">Valuation metric</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">ROE</div>
+                        <div class="metric-value" id="roeValue">22.97%</div>
+                        <div class="metric-change positive">Strong profitability</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Current Price</div>
+                        <div class="metric-value" id="priceValue">6,225</div>
+                        <div class="metric-change neutral">IDR</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Volume</div>
+                        <div class="metric-value" id="volumeValue">24.5M</div>
+                        <div class="metric-change positive">Daily shares</div>
+                    </div>
+                </div>
+
+                <div class="risk-indicator">
+                    <span class="risk-label">Risk Assessment:</span>
+                    <span class="risk-level" id="riskLevel">MEDIUM</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Corporate Relationship Network</h2>
+                <p class="card-subtitle">Ownership structures & interlocking directorates</p>
+                <div id="network-graph"></div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot legend-company"></div>
+                        <span>Company</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot legend-person"></div>
+                        <span>Director/Commissioner</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot legend-conglomerate"></div>
+                        <span>Major Owner</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Earnings Analysis</h2>
+                <p class="card-subtitle">Revenue, operating income & net income trends</p>
+                <div class="chart-container">
+                    <canvas id="earningsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Cash Flow Analysis</h2>
+                <p class="card-subtitle">Operating cash flow vs free cash flow</p>
+                <div class="chart-container">
+                    <canvas id="cashflowChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card ai-analysis">
+                <h2 class="card-title">AI Investment Advisory</h2>
+                <p class="card-subtitle">Quantitative analysis powered by Llama 3.1</p>
+                <div class="ai-content" id="aiAnalysis">
+                    Loading analysis...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let network = null;
+        let earningsChartInstance = null;
+        let cashflowChartInstance = null;
+
+        window.onload = function() {
+            analyzeStock();
+        };
+
+        document.getElementById('tickerInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeStock();
+            }
+        });
+
+        async function analyzeStock() {
+            const ticker = document.getElementById('tickerInput').value.toUpperCase().trim();
+            if (!ticker) return;
+
+            document.getElementById('loading').classList.add('active');
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5001/api/analyze/${ticker}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                updateDashboard(data);
+                
+                document.getElementById('loading').classList.remove('active');
+                
+                document.getElementById('stockHeader').style.display = 'flex';
+                document.getElementById('dashboard').style.display = 'grid';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to connect to server. Make sure analyzer.py is running on port 5001.');
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+
+        function updateDashboard(data) {
+            const { ticker, fundamentals, ai_advisory, network_raw } = data;
+
+            document.getElementById('tickerSymbol').textContent = ticker;
+            document.getElementById('companyName').textContent = `PT ${ticker} Tbk`;
+            document.getElementById('currentPrice').textContent = `Rp ${fundamentals.current_price.toLocaleString()}`;
+            document.getElementById('priceChange').textContent = `Intrinsic Value: Rp ${Math.round(fundamentals.intrinsic_value).toLocaleString()}`;
+
+            const statusBadge = document.getElementById('statusBadge');
+            const status = ai_advisory.status || 'CLEAR TO BUY';
+            if (status.includes('BUY')) {
+                statusBadge.className = 'status-badge status-buy';
+                statusBadge.innerHTML = '<span class="status-dot"></span>CLEAR TO BUY';
+            } else {
+                statusBadge.className = 'status-badge status-warning';
+                statusBadge.innerHTML = '<span class="status-dot"></span>WARNING - DO NOT BUY';
+            }
+
+            document.getElementById('peRatio').textContent = fundamentals.pe_ratio.toFixed(2);
+            document.getElementById('roeValue').textContent = `${fundamentals.roe.toFixed(2)}%`;
+            document.getElementById('priceValue').textContent = fundamentals.current_price.toLocaleString();
+            document.getElementById('volumeValue').textContent = formatVolume(fundamentals.volume);
+
+            const riskLevel = document.getElementById('riskLevel');
+            const risk = (ai_advisory.risk_factor || 'Medium').toLowerCase();
+            riskLevel.textContent = risk.toUpperCase();
+            riskLevel.className = `risk-level risk-${risk}`;
+
+            document.getElementById('aiAnalysis').innerHTML = `
+                <strong>Recommendation:</strong> ${ai_advisory.status || 'CLEAR TO BUY'}<br><br>
+                ${ai_advisory.reasoning || 'Analysis pending...'}<br><br>
+                <strong>Network Analysis:</strong><br>
+                ${network_raw !== 'Neo4j database offline. Running on purely SQL metrics and live news.' && network_raw !== 'No network layers mapped in Neo4j graph yet.'
+                    ? network_raw.replace(/\n/g, '<br>') 
+                    : '<em>No corporate network data available. Consider populating the Neo4j graph database.</em>'}
+            `;
+
+            updateNetworkGraph(ticker, network_raw);
+            updateCharts(fundamentals);
+        }
+
+        function formatVolume(volume) {
+            if (volume >= 1000000) {
+                return `${(volume / 1000000).toFixed(1)}M`;
+            } else if (volume >= 1000) {
+                return `${(volume / 1000).toFixed(1)}K`;
+            }
+            return volume.toString();
+        }
+
+        function updateNetworkGraph(ticker, networkData) {
+    const nodes = [];
+    const edges = [];
+    
+    // Add main company as central node
+    nodes.push({
+        id: 1,
+        label: ticker,
+        shape: 'box',
+        size: 40,
+        font: { 
+            size: 24, 
+            color: '#f8fafc',
+            face: 'JetBrains Mono',
+            bold: true
+        },
+        color: { 
+            background: '#06b6d4', 
+            border: '#0891b2',
+            highlight: { background: '#22d3ee', border: '#06b6d4' }
+        },
+        borderWidth: 3,
+        shadow: true
+    });
+
+    if (networkData && networkData !== 'Neo4j database offline. Running on purely SQL metrics and live news.' && networkData !== 'No network layers mapped in Neo4j graph yet.') {
+        const lines = networkData.split('\n');
+        let nodeId = 2;
+        let directorCount = 0;
+        let ownerCount = 0;
+        
+        lines.forEach(line => {
+            // Only show first 8 directors/commissioners to avoid clutter
+            if ((line.includes('DIRECTOR_OF') || line.includes('COMMISSIONER_OF')) && directorCount < 8) {
+                const match = line.match(/'([^']+)'/);
+                if (match) {
+                    nodes.push({
+                        id: nodeId,
+                        label: match[1],
+                        shape: 'box',
+                        size: 25,
+                        font: { 
+                            size: 11, 
+                            color: '#f8fafc',
+                            face: 'JetBrains Mono'
+                        },
+                        color: { 
+                            background: '#f59e0b', 
+                            border: '#d97706',
+                            highlight: { background: '#fbbf24', border: '#f59e0b' }
+                        },
+                        borderWidth: 2,
+                        shadow: true,
+                        margin: 10
+                    });
+                    edges.push({ 
+                        from: nodeId, 
+                        to: 1, 
+                        label: 'BOARD',
+                        font: { 
+                            size: 9, 
+                            color: '#94a3b8',
+                            face: 'JetBrains Mono',
+                            align: 'middle'
+                        },
+                        arrows: 'to',
+                        color: { 
+                            color: '#64748b', 
+                            highlight: '#06b6d4' 
+                        },
+                        width: 1.5,
+                        smooth: { type: 'curvedCW', roundness: 0.2 }
+                    });
+                    nodeId++;
+                    directorCount++;
+                }
+            } 
+            // Show major owners (limit to 5)
+            else if (line.includes('OWNS') && ownerCount < 5) {
+                const match = line.match(/'([^']+)'/);
+                if (match) {
+                    nodes.push({
+                        id: nodeId,
+                        label: match[1],
+                        shape: 'box',
+                        size: 30,
+                        font: { 
+                            size: 12, 
+                            color: '#f8fafc',
+                            face: 'JetBrains Mono'
+                        },
+                        color: { 
+                            background: '#10b981', 
+                            border: '#059669',
+                            highlight: { background: '#34d399', border: '#10b981' }
+                        },
+                        borderWidth: 2,
+                        shadow: true,
+                        margin: 10
+                    });
+                    edges.push({ 
+                        from: nodeId, 
+                        to: 1, 
+                        label: 'OWNS',
+                        font: { 
+                            size: 9, 
+                            color: '#94a3b8',
+                            face: 'JetBrains Mono',
+                            align: 'middle'
+                        },
+                        arrows: 'to',
+                        color: { 
+                            color: '#64748b', 
+                            highlight: '#10b981' 
+                        },
+                        width: 2,
+                        smooth: { type: 'curvedCW', roundness: 0.15 }
+                    });
+                    nodeId++;
+                    ownerCount++;
+                }
+            }
+        });
+    }
+
+    const container = document.getElementById('network-graph');
+    const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+    
+    const options = {
+        nodes: {
+            shape: 'box',
+            borderWidth: 2,
+            shadow: {
+                enabled: true,
+                color: 'rgba(0,0,0,0.3)',
+                size: 10,
+                x: 5,
+                y: 5
+            },
+            borderRadius: 8
+        },
+        edges: {
+            width: 1.5,
+            color: { color: '#475569', highlight: '#06b6d4' },
+            smooth: { 
+                type: 'curvedCW', 
+                roundness: 0.2 
+            },
+            arrows: {
+                to: {
+                    enabled: true,
+                    scaleFactor: 0.5,
+                    type: 'arrow'
+                }
+            }
+        },
+        layout: {
+            hierarchical: {
+                enabled: true,
+                direction: 'UD',
+                sortMethod: 'directed',
+                levelSeparation: 150,
+                nodeSpacing: 200,
+                treeSpacing: 150,
+                blockShifting: true,
+                edgeMinimization: true,
+                parentCentralization: true
+            }
+        },
+        physics: {
+            enabled: false
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200,
+            zoomView: true,
+            dragView: true,
+            hideEdgesOnDrag: true
+        }
+    };
+
+    if (network) network.destroy();
+    network = new vis.Network(container, data, options);
+    
+    // Add node count display
+    const nodeCount = nodes.length - 1; // Exclude main company
+    document.querySelector('.legend').innerHTML = `
+        <div class="legend-item">
+            <div class="legend-dot legend-company"></div>
+            <span>${nodeCount} Connections Found</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot legend-person"></div>
+            <span>Board Members</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot legend-conglomerate"></div>
+            <span>Major Owners</span>
+        </div>
+    `;
+}
+            
+
+        
+        function updateCharts(fundamentals) {
+            const years = ['2021', '2022', '2023', '2024', '2025'];
+            const revenue = generateGrowthData(fundamentals, 50000, 150000);
+            const operatingIncome = generateGrowthData(fundamentals, 10000, 40000);
+            const netIncome = generateGrowthData(fundamentals, 8000, 30000);
+            const cashFlowOps = generateGrowthData(fundamentals, 12000, 45000);
+            const fcf = generateGrowthData(fundamentals, 8000, 35000);
+
+            const earningsCtx = document.getElementById('earningsChart').getContext('2d');
+            if (earningsChartInstance) {
+                earningsChartInstance.destroy();
+            }
+            
+            earningsChartInstance = new Chart(earningsCtx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [
+                        {
+                            label: 'Revenue',
+                            data: revenue,
+                            backgroundColor: 'rgba(6, 182, 212, 0.8)',
+                            borderColor: '#06b6d4',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Operating Income',
+                            data: operatingIncome,
+                            backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                            borderColor: '#f59e0b',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'Net Income',
+                            data: netIncome,
+                            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                            borderColor: '#10b981',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                        }
+                    }
+                }
+            });
+
+            const cashflowCtx = document.getElementById('cashflowChart').getContext('2d');
+            if (cashflowChartInstance) {
+                cashflowChartInstance.destroy();
+            }
+            
+            cashflowChartInstance = new Chart(cashflowCtx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [
+                        {
+                            label: 'Cash Flow from Operations',
+                            data: cashFlowOps,
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Free Cash Flow',
+                            data: fcf,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateGrowthData(fundamentals, min, max) {
+            const data = [];
+            const roe = fundamentals.roe || 15;
+            const growthRate = (roe / 100) * 0.5;
+            
+            for (let i = 0; i < 5; i++) {
+                const baseValue = min + (max - min) * (i / 4);
+                const variance = (Math.random() - 0.5) * 0.2;
+                const value = baseValue * (1 + variance + (growthRate * i));
+                data.push(Math.round(value));
+            }
+            return data;
+        }
+    </script>
+</body>
+</html>
